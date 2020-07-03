@@ -1,14 +1,13 @@
 Package: geneplast.data
-Type: Package
 Title: Input data for the geneplast package via AnnotationHub
 Version: 0.1.0
 Author: Leonardo RS Campos, Danilo Imparato, Rodrigo Dalmolin, Mauro Castro.
 Maintainer: Leonardo RS Campos <leofields@gmail.com>
 Description: The package geneplast.data provides an interface for obtaining 
- input data used in the analysis pipelines available in the geneplast package.
+ input data used in the analyses pipelines from geneplast package.
 Depends: R (>= 4.0)
+Imports: 
 License: Artistic-2.0
-biocViews: AnnotationData, AnnotationHub, DataImport
+biocViews: AnnotationData, AnnotationHub, DataImport, geneplast
 Encoding: UTF-8
-LazyData: true
-RoxygenNote: 7.0.2
+RoxygenNote: 7.1.0
