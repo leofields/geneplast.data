@@ -341,7 +341,7 @@ cogdata <- cogdata[, c(1, 4)]
 colnames(cogdata) <- c("protein_id", "cog_id")
 
 cogdata %<>% mutate(ssp_id = protein_id
-         %>% strsplit(".", fixed = T)
+         %>% strsplit(".", fixed = TRUE)
          %>% sapply("[", 1))
 
 cogdata %<>% filter(ssp_id %in% string_eukaryotes[["taxid"]])

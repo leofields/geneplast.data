@@ -1,0 +1,7 @@
+citEntry(entry = "Manual",
+  author = "Leonardo RS Campos, Danilo Imparato, Rodrigo JS Dalmolin and Mauro AA Castro",
+  title = "geneplast.data: evolutionary rooting and plasticity inference.",
+  year = "2020",
+  note = "R package version 0.1.0",
+  textVersion = "Campos LRS, Imparato DO, Dalmolin RJS, Castro MAA. geneplast.data: input data for the geneplast package. R package, 2020."
+)

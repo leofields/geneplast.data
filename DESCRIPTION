@@ -1,13 +1,18 @@
 Package: geneplast.data
 Title: Input data for the geneplast package via AnnotationHub
 Version: 0.1.0
-Author: Leonardo RS Campos, Danilo Imparato, Rodrigo Dalmolin, Mauro Castro.
-Maintainer: Leonardo RS Campos <leofields@gmail.com>
+Authors@R: c(
+    person("Leonardo", "Campos", email = "leofields@gmail.com", role = c("aut", "cre")), 
+    person("Danilo", "Imparato", email = "imparatodanilo@gmail.com", role = "aut"), 
+    person("Rodrigo", "Dalmolin", email = "dalmolin_r@yahoo.com.br", role = "aut"),
+    person("Mauro", "Castro", email = "mauro.a.castro@gmail.com", role = "aut"))
 Description: The package geneplast.data provides an interface for obtaining 
- input data used in the analyses pipelines from geneplast package.
+    input data used in the analyses pipelines from geneplast package. Objects
+    containing species, phylogenetic trees, and orthology information of 
+    eukaryotes from different orthologous databases are provided.
 Depends: R (>= 4.0)
 Imports: 
 License: Artistic-2.0
-biocViews: AnnotationData, AnnotationHub, DataImport, geneplast
+biocViews: AnnotationData, AnnotationHub
 Encoding: UTF-8
-RoxygenNote: 7.1.0
+RoxygenNote: 7.1.1
