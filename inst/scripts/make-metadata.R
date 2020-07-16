@@ -16,7 +16,7 @@ Maintainer <- "Leonardo RS Campos <leofields@gmail.com>"
 RDataClass <- "Rda"
 DispatchClass <- "Rda"
 ResourceName <- c("gpdata_string_v11.RData", "gpdata_oma_All.Jan2020.RData", "gpdata_orthodb_v101.RData")
-RDataPath <- c("geneplast.data.string.v11", "geneplast.data.oma.All.Jan2020", "geneplast.data.orthodb.v101")
+RDataPath <- c("geneplast.data/gpdata_string_v11.RData", "geneplast.data/gpdata_oma_All.Jan2020.RData", "geneplast.data/gpdata_orthodb_v101.RData")
 Tags <- "geneplast, datasets, eukaryota, orthology"
 
 meta <- data.frame(Title,
