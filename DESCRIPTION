@@ -12,6 +12,8 @@ Description: The package geneplast.data provides an interface for obtaining
     eukaryotes from different orthologous databases are provided.
 Depends: R (>= 4.0)
 Imports: 
+Suggests: knitr, rmarkdown
+VignetteBuilder: knitr
 License: Artistic-2.0
 biocViews: AnnotationData, AnnotationHub
 Encoding: UTF-8

@@ -1,0 +1,89 @@
+---
+title: "Supporting data for geneplast evolutionary analyses"
+author: "Leonardo RS Campos, Danilo O Imparato, Mauro AA Castro, Rodrigo JS Dalmolin"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Supporting data for geneplast evolutionary analyses}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteKeyword{geneplast, annotations}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Overview
+
+[Geneplast](https://www.bioconductor.org/packages/release/bioc/html/geneplast.html) is designed for evolutionary and plasticity analyses based on orthologous groups (OG) distribution in a given species tree.
+This supporting package provides datasets obtained and processed from different orthologous databases for use in geneplast evolutionary analyses.
+
+Currently, data from the following sources are available:
+
+- STRING ([https://string-db.org/](https://string-db.org/))
+- OMA Browser ([https://omabrowser.org/](https://omabrowser.org/))
+- OrthoDB ([https://www.orthodb.org/](https://www.orthodb.org/))
+
+Each dataset consists of four objects:
+
+- **cogids**. A data.frame containing OG identifiers.
+- **sspids**. A data.frame with species identifiers.
+- **cogdata**. A data.frame with OG to protein mapping.
+- **phyloTree**. An object of class `phylo` representing a phylogenetic tree for the species in `sspids`.
+
+# Objects creation
+
+The general procedure for creating the objects previously described starts by selecting only eukaryotes species from the orthologous database with the aid of [NCBI taxonomy](https://www.ncbi.nlm.nih.gov/taxonomy) classification. 
+
+We build a graph from taxonomy nodes and locate the root of eukaryotes. Then, we traverse this sub-graph from root to leaves corresponding to the taxonomy identifiers of the species in the database. By selecting the leaves of the resulting sub-graph, we obtain the `sspids` object.
+
+Once the species of interest are selected, the orthology information of corresponding proteins are filtered to obtain the `cogdata` object.
+The `cogids` object consists of unique orthologs identifiers from `cogdata`.
+
+Finally, the `phyloTree` object is built from [TimeTree](http://www.timetree.org/) full eukaryotes phylogenetic tree, which is pruned to show only our species of interest. The missing species are filled using strategies of matching genera and closest species inferred from NCBI's tree previously built.
+
+# Installation
+
+If you don't already have AnnotationHub installed on your system, use
+`BiocManager::install` to install the package:
+
+```{r eval = FALSE}
+install.packages("BiocManager")
+BiocManager::install("AnnotationHub")
+```
+
+# Getting started
+
+To begin, let's create a new `AnnotationHub` connection and use it to query
+AnnotationHub for all Geneplast resources.
+
+```{r}
+library('AnnotationHub')
+
+# create an AnnotationHub connection
+ah <- AnnotationHub()
+
+# search for all Geneplast resources
+meta <- query(ah, "geneplast")
+
+length(meta)
+head(meta)
+
+# types of Geneplast data available
+table(meta$rdataclass)
+
+# distribution of resources by specific databases
+table(meta$dataprovider)
+```
+
+Please refer to [geneplast vignette](https://www.bioconductor.org/packages/release/bioc/vignettes/geneplast/inst/doc/geneplast.html) for more details.
+
+# Session Information
+
+```{r}
+sessionInfo()
+```
