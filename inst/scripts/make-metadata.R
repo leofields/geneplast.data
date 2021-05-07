@@ -14,7 +14,7 @@ Coordinate_1_based <- FALSE
 DataProvider <- c("STRING", "OMA", "OrthoDB")
 Maintainer <- "Leonardo RS Campos <leofields@gmail.com>"
 RDataClass <- "Rda"
-DispatchClass <- "Rda"
+DispatchClass <- "FilePath"
 ResourceName <- c("gpdata_string_v11.RData", "gpdata_oma_All.Jan2020.RData", "gpdata_orthodb_v101.RData")
 RDataPath <- c("geneplast.data/gpdata_string_v11.RData", "geneplast.data/gpdata_oma_All.Jan2020.RData", "geneplast.data/gpdata_orthodb_v101.RData")
 Tags <- "geneplast, datasets, eukaryota, orthology"
