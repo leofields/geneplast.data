@@ -4,7 +4,7 @@ Description <-
       "Eukaryotes input data for geneplast package extracted from OMA All.Jan2020",
       "Eukaryotes input data for geneplast package extracted from OrthoDB v10.1",
       "Eukaryotes input data for geneplast package extracted from STRING v9.1")
-BiocVersion <- "3.12"
+BiocVersion <- c("3.12","3.12","3.12","3.13")
 Genome <- NA
 SourceType <- "TXT"
 SourceUrl <- c("https://string-db.org/", "https://omabrowser.org/", "https://www.orthodb.org/", "https://string-db.org/")
@@ -18,7 +18,7 @@ RDataClass <- "Rda"
 DispatchClass <- "FilePath"
 ResourceName <- c("gpdata_string_v11.RData", "gpdata_oma_All.Jan2020.RData", "gpdata_orthodb_v101.RData", "gpdata_string_v91.RData")
 RDataPath <- c("geneplast.data/gpdata_string_v11.RData", "geneplast.data/gpdata_oma_All.Jan2020.RData", "geneplast.data/gpdata_orthodb_v101.RData", "geneplast.data/gpdata_string_v91.RData")
-Tags <- "geneplast, datasets, eukaryota, orthology"
+Tags <- "geneplast:datasets:eukaryota:orthology"
 
 meta <- data.frame(Title,
                    Description,
