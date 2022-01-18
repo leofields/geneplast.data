@@ -1,8 +1,15 @@
 ---
 title: "Supporting data for geneplast evolutionary analyses"
 author: "Leonardo RS Campos, Danilo O Imparato, Mauro AA Castro, Rodrigo JS Dalmolin"
-date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+date: "`r BiocStyle::doc_date()`"
+package: "`r BiocStyle::pkg_ver('geneplast.data')`"
+abstract: <p>The package geneplast.data provides 
+    datasets from different sources via AnnotationHub to use in geneplast pipelines. 
+    The datasets have species, phylogenetic trees, and orthology relationships 
+    among eukaryotes from different orthologs databases. </p>
+output: 
+  BiocStyle::html_document:
+    css: custom.css
 vignette: >
   %\VignetteIndexEntry{Supporting data for geneplast evolutionary analyses}
   %\VignetteEngine{knitr::rmarkdown}
@@ -19,8 +26,11 @@ knitr::opts_chunk$set(
 
 # Overview
 
-[Geneplast](https://www.bioconductor.org/packages/release/bioc/html/geneplast.html) is designed for evolutionary and plasticity analyses based on orthologous groups (OG) distribution in a given species tree.
-This supporting package provides datasets obtained and processed from different orthologous databases for use in geneplast evolutionary analyses.
+[Geneplast](https://www.bioconductor.org/packages/release/bioc/html/geneplast.html) 
+is designed for large scale evolutionary plasticity and rooting analysis based on 
+orthologous groups (OG) distribution in a given species tree.
+This supporting package provides datasets obtained and processed from different 
+orthologous databases for use in geneplast evolutionary analyses.
 
 Currently, data from the following sources are available:
 
@@ -30,12 +40,12 @@ Currently, data from the following sources are available:
 
 Each dataset consists of four objects:
 
-- **cogids**. A data.frame containing OG identifiers.
-- **sspids**. A data.frame with species identifiers.
-- **cogdata**. A data.frame with OG to protein mapping.
+- **cogids**. A `data.frame` containing OG identifiers.
+- **sspids**. A `data.frame` with species identifiers.
+- **cogdata**. A `data.frame` with OG to protein mapping.
 - **phyloTree**. An object of class `phylo` representing a phylogenetic tree for the species in `sspids`.
 
-# Objects creation
+## Objects creation
 
 The general procedure for creating the objects previously described starts by selecting only eukaryotes species from the orthologous database with the aid of [NCBI taxonomy](https://www.ncbi.nlm.nih.gov/taxonomy) classification. 
 
@@ -46,41 +56,196 @@ The `cogids` object consists of unique orthologs identifiers from `cogdata`.
 
 Finally, the `phyloTree` object is built from [TimeTree](http://www.timetree.org/) full eukaryotes phylogenetic tree, which is pruned to show only our species of interest. The missing species are filled using strategies of matching genera and closest species inferred from NCBI's tree previously built.
 
-# Installation
 
-If you don't already have AnnotationHub installed on your system, use
-`BiocManager::install` to install the package:
+# Case study: Transfer rooting information to a PPI network
 
-```{r eval = FALSE}
-install.packages("BiocManager")
-BiocManager::install("AnnotationHub")
-```
+In this section, we reproduce a case study from [geneplast vignette](https://www.bioconductor.org/packages/release/bioc/vignettes/geneplast/inst/doc/geneplast.html#map-rooting-information-on-ppi-networks) using distinct datasets.
 
-# Getting started
+The next steps show how to retrieve the data from AnnotationHub, run geneplast rooting analysis, and transfer its results to a graph model. We annotate each dataset with ENTREZ identificators to match the PPI network provided in the example.
 
-To begin, let's create a new `AnnotationHub` connection and use it to query
-AnnotationHub for all Geneplast resources.
+## STRING
 
-```{r}
+1 - Create a new `AnnotationHub` connection and query for all geneplast resources.
+```{r, eval=FALSE}
 library('AnnotationHub')
-
 # create an AnnotationHub connection
 ah <- AnnotationHub()
 
-# search for all Geneplast resources
+# search for all geneplast resources
 meta <- query(ah, "geneplast")
 
-length(meta)
 head(meta)
+```
+2 - Load the objects into the session using the ID of the chosen dataset.
+```{r, eval=FALSE}
+load(meta[["AH83116"]])
+```
+3 - Annotate `cogdata` with ENTREZ identificators using [this file](https://string-db.org/mapping_files/entrez/human.entrez_2_string.2018.tsv.gz) obtained from STRING.
 
-# types of Geneplast data available
-table(meta$rdataclass)
+```{r, eval=FALSE}
+library(dplyr)
+library(tidyr)
+library(readr)
+human_entrez_2_string_2018 <- read_delim("processed_human.entrez_2_string.2018.tsv", 
+    delim = "\t", escape_double = FALSE, 
+    col_names = FALSE, trim_ws = TRUE, skip = 1)
 
-# distribution of resources by specific databases
-table(meta$dataprovider)
+names(human_entrez_2_string_2018) <- c("ssp_id", "gene_id", "protein_id")
+
+human_entrez_2_string_2018 <- human_entrez_2_string_2018 %>% separate_rows(gene_id) %>% separate(protein_id, c(NA, "protein_id"))
+
+cogdata <- cogdata %>% separate(protein_id, c(NA, "protein_id")) %>% left_join(human_entrez_2_string_2018)
+
+
 ```
 
-Please refer to [geneplast vignette](https://www.bioconductor.org/packages/release/bioc/vignettes/geneplast/inst/doc/geneplast.html) for more details.
+4 - Create an object of class 'OGR' for a reference 'spid'.
+
+```{r, eval=FALSE}
+library(geneplast)
+ogr <- groot.preprocess(cogdata=cogdata, phyloTree=phyloTree, spid="9606")
+```
+
+5 - Run the `groot` function and infer the evolutionary roots. 
+*Note: this step should take a long processing time due to the large number of OGs in the input data (also, `nPermutations` argument is set to 100 for demonstration purpose only).*
+
+```{r, eval=FALSE}
+ogr <- groot(ogr, nPermutations=100, verbose=TRUE)
+```
+
+
+
+### Graph model for a PPI network
+
+1 - Load a PPI network and required packages. The `igraph` object called 'ppi.gs' provides PPI information for apoptosis and genome-stability genes [@Castro2008].
+
+```{r, eval=FALSE}
+library(RedeR)
+library(igraph)
+library(RColorBrewer)
+data(ppi.gs)
+```
+
+2 - Map rooting information on the `igraph` object.
+
+```{r, eval=FALSE}
+g <- ogr2igraph(ogr, cogdata, ppi.gs, idkey = "ENTREZ")
+```
+
+3 - Adjust colors for rooting information.
+
+```{r, eval=FALSE}
+pal <- brewer.pal(9, "RdYlBu")
+color_col <- colorRampPalette(pal)(37) #set a color for each root!
+g <- att.setv(g=g, from="Root", to="nodeColor", cols=color_col, na.col = "grey80", breaks = seq(1,37))
+```
+
+4 - Aesthetic adjusts for some graph attributes.
+
+```{r, eval=FALSE}
+g <- att.setv(g = g, from = "SYMBOL", to = "nodeAlias")
+E(g)$edgeColor <- "grey80"
+V(g)$nodeLineColor <- "grey80"
+```
+
+5 - Send the `igraph` object to **RedeR** interface.
+
+```{r, eval=FALSE}
+rdp <- RedPort()
+calld(rdp)
+resetd(rdp)
+addGraph(rdp, g)
+addLegend.color(rdp, colvec=g$legNodeColor$scale, size=15, labvec=g$legNodeColor$legend, title="Roots represented in Fig1")
+```
+
+6 - Get apoptosis and genome-stability sub-networks.
+
+```{r, eval=FALSE}
+g1  <- induced_subgraph(g=g, V(g)$name[V(g)$Apoptosis==1])
+g2  <- induced_subgraph(g=g, V(g)$name[V(g)$GenomeStability==1])
+```
+
+7 - Group apoptosis and genome-stability genes into containers.
+
+```{r, eval=FALSE}
+myTheme <- list(nestFontSize=25, zoom=80, isNest=TRUE, gscale=65, theme=2)
+addGraph(rdp, g1, gcoord=c(25, 50), theme = c(myTheme, nestAlias="Apoptosis"))
+addGraph(rdp, g2, gcoord=c(75, 50), theme = c(myTheme, nestAlias="Genome Stability"))
+relax(rdp, p1=50, p2=50, p3=50, p4=50, p5= 50, ps = TRUE)
+```
+![title](Fig1.png)
+
+## OMA
+
+```{r, eval=FALSE}
+load(meta[["AH83117"]])
+cogdata$cog_id <- paste0("OMA", cogdata$cog_id)
+
+human_entrez_2_oma_Aug2020 <- read_delim("processed_human.entrez_2_OMA.Aug2020.tsv", 
+    delim = "\t", escape_double = FALSE, 
+    col_names = FALSE, trim_ws = TRUE)
+names(human_entrez_2_oma_Aug2020) <- c("protein_id", "gene_id")
+cogdata <- cogdata %>% left_join(human_entrez_2_oma_Aug2020)
+ogr <- groot.preprocess(cogdata=cogdata, phyloTree=phyloTree, spid="9606")
+ogr <- groot(ogr, nPermutations=100, verbose=TRUE)
+
+g <- ogr2igraph(ogr, cogdata, ppi.gs, idkey = "ENTREZ")
+pal <- brewer.pal(9, "RdYlBu")
+color_col <- colorRampPalette(pal)(37) #set a color for each root!
+g <- att.setv(g=g, from="Root", to="nodeColor", cols=color_col, na.col = "grey80", breaks = seq(1,37))
+g <- att.setv(g = g, from = "SYMBOL", to = "nodeAlias")
+E(g)$edgeColor <- "grey80"
+V(g)$nodeLineColor <- "grey80"
+# rdp <- RedPort()
+# calld(rdp)
+resetd(rdp)
+addGraph(rdp, g)
+addLegend.color(rdp, colvec=g$legNodeColor$scale, size=15, labvec=g$legNodeColor$legend, title="Roots represented in Fig2")
+g1  <- induced_subgraph(g=g, V(g)$name[V(g)$Apoptosis==1])
+g2  <- induced_subgraph(g=g, V(g)$name[V(g)$GenomeStability==1])
+myTheme <- list(nestFontSize=25, zoom=80, isNest=TRUE, gscale=65, theme=2)
+addGraph(rdp, g1, gcoord=c(25, 50), theme = c(myTheme, nestAlias="Apoptosis"))
+addGraph(rdp, g2, gcoord=c(75, 50), theme = c(myTheme, nestAlias="Genome Stability"))
+relax(rdp, p1=50, p2=50, p3=50, p4=50, p5= 50, ps = TRUE)
+```
+![title](Fig2.png)
+
+## OrthoDB 
+
+```{r, eval=FALSE}
+load(meta[["AH83118"]])
+cogdata$cog_id <- paste0("ODB", cogdata$cog_id)
+
+human_entrez_2_odb <- read_delim("odb10v1_genes-human-entrez.tsv", 
+    delim = "\t", escape_double = FALSE, 
+    col_names = FALSE, trim_ws = TRUE)
+names(human_entrez_2_odb) <- c("protein_id", "gene_id")
+cogdata <- cogdata %>% left_join(human_entrez_2_odb)
+ogr <- groot.preprocess(cogdata=cogdata, phyloTree=phyloTree, spid="9606")
+ogr <- groot(ogr, nPermutations=100, verbose=TRUE)
+
+g <- ogr2igraph(ogr, cogdata, ppi.gs, idkey = "ENTREZ")
+pal <- brewer.pal(9, "RdYlBu")
+color_col <- colorRampPalette(pal)(37) #set a color for each root!
+g <- att.setv(g=g, from="Root", to="nodeColor", cols=color_col, na.col = "grey80", breaks = seq(1,37))
+g <- att.setv(g = g, from = "SYMBOL", to = "nodeAlias")
+E(g)$edgeColor <- "grey80"
+V(g)$nodeLineColor <- "grey80"
+rdp <- RedPort()
+calld(rdp)
+resetd(rdp)
+addGraph(rdp, g)
+addLegend.color(rdp, colvec=g$legNodeColor$scale, size=15, labvec=g$legNodeColor$legend, title="Roots represented in Fig3")
+g1  <- induced_subgraph(g=g, V(g)$name[V(g)$Apoptosis==1])
+g2  <- induced_subgraph(g=g, V(g)$name[V(g)$GenomeStability==1])
+myTheme <- list(nestFontSize=25, zoom=80, isNest=TRUE, gscale=65, theme=2)
+addGraph(rdp, g1, gcoord=c(25, 50), theme = c(myTheme, nestAlias="Apoptosis"))
+addGraph(rdp, g2, gcoord=c(75, 50), theme = c(myTheme, nestAlias="Genome Stability"))
+relax(rdp, p1=50, p2=50, p3=50, p4=50, p5= 50, ps = TRUE)
+```
+![title](Fig3.png)
+
+
 
 # Session Information
 
