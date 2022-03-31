@@ -368,6 +368,16 @@ colnames(cogdata) <- c("protein_id", "ssp_id", "cog_id")
 
 cogdata %<>% filter(ssp_id %in% odb_eukaryotes[["taxid"]])
 
+# Fix problem in ogr.preprocess
+cogdata$cog_id <- paste0("ODB", cogdata$cog_id)
+
+# Human ENTREZ mapping
+human_entrez_2_odb <- read_delim("odb10v1_genes-human-entrez.tsv",
+                                 delim = "\t", escape_double = FALSE,
+                                 col_names = FALSE, trim_ws = TRUE)
+names(human_entrez_2_odb) <- c("protein_id", "gene_id")
+cogdata <- cogdata %>% left_join(human_entrez_2_odb)
+
 ####### SSPIDS ####
 sspids <- odb_eukaryotes[,c("taxid", "odb_name")]
 colnames(sspids) <- c("ssp_id", "ssp_name")
@@ -380,5 +390,5 @@ save(cogdata,
      sspids,
      cogids,
      phyloTree,
-     file = "inst/extdata/gpdata_orthodb_v101.RData",
+     file = "gpdata_orthodb_v101.RData",
      compress = "xz")

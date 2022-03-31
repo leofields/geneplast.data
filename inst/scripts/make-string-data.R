@@ -34,10 +34,16 @@ if (!file.exists("working_directory/string/species.v11.0.txt")) {
 
 if (!file.exists("working_directory/string/COG.mappings.v11.0.txt.gz")) {
   download.file(
-    "https://stringdb-static.org/working_directory/COG.mappings.v11.0.txt.gz",
+    "https://stringdb-static.org/download/COG.mappings.v11.0.txt.gz",
     "working_directory/string/COG.mappings.v11.0.txt.gz"
   )
+}
 
+if (!file.exists("working_directory/string/all_organisms.entrez_2_string.2018.tsv.gz")) {
+  download.file(
+    "https://version-11-0.string-db.org/mapping_files/entrez/all_organisms.entrez_2_string.2018.tsv.gz",
+    "working_directory/string/all_organisms.entrez_2_string.2018.tsv.gz"
+  )
 }
 
 if (!file.exists("working_directory/timetree/Eukaryota_species.nwk")) {
@@ -340,9 +346,17 @@ cogdata <- as.data.frame(fread("working_directory/string/COG.mappings.v11.0.txt.
 cogdata <- cogdata[, c(1, 4)]
 colnames(cogdata) <- c("protein_id", "cog_id")
 
-cogdata %<>% mutate(ssp_id = protein_id
+cogdata <- cogdata %>% mutate(ssp_id = protein_id
          %>% strsplit(".", fixed = TRUE)
          %>% sapply("[", 1))
+
+# Human ENTREZ mapping
+entrez_2_string <- as.data.frame(fread("working_directory/string/human.entrez_2_string.2018.tsv.gz"))
+names(entrez_2_string) <- c("ssp_id", "gene_id", "protein_id")
+#entrez_2_string <- entrez_2_string %>% filter(ssp_id %in% sspids$ssp_id)
+entrez_2_string <- entrez_2_string %>% separate_rows(gene_id)
+entrez_2_string <- entrez_2_string %>% separate(protein_id, c(NA, "protein_id"))
+cogdata <- cogdata %>% separate(protein_id, c(NA, "protein_id")) %>% left_join(entrez_2_string)
 
 cogdata %<>% filter(ssp_id %in% string_eukaryotes[["taxid"]])
 

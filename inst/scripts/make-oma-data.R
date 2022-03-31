@@ -358,6 +358,16 @@ cogdata %<>%
 
 colnames(cogdata) <- c("cog_id", "protein_id", "ssp_id")
 
+# Fix problem in ogr.preprocess
+cogdata$cog_id <- paste0("OMA", cogdata$cog_id)
+
+# Human ENTREZ mapping
+human_entrez_2_odb <- read_delim("odb10v1_genes-human-entrez.tsv",
+                                 delim = "\t", escape_double = FALSE,
+                                 col_names = FALSE, trim_ws = TRUE)
+names(human_entrez_2_odb) <- c("protein_id", "gene_id")
+cogdata <- cogdata %>% left_join(human_entrez_2_odb)
+
 ####### SSPIDS ####
 sspids <- oma_eukaryotes[,c("taxid", "oma_name")]
 colnames(sspids) <- c("ssp_id", "ssp_name")
