@@ -9,3 +9,4 @@ Meta
 working_directory
 geneplast.data.Rproj
 vignettes/.vscode/settings.json
+.RDataTmp

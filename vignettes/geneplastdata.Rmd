@@ -38,14 +38,33 @@ Currently, data from the following sources are available:
 - OMA Browser ([https://omabrowser.org/](https://omabrowser.org/))
 - OrthoDB ([https://www.orthodb.org/](https://www.orthodb.org/))
 
-Each dataset consists of four objects:
+Each dataset consists of four objects used as input for geneplast:
 
-- **cogids**. A `data.frame` containing OG identifiers.
-- **sspids**. A `data.frame` with species identifiers.
-- **cogdata**. A `data.frame` with OG to protein mapping.
-- **phyloTree**. An object of class `phylo` representing a phylogenetic tree for the species in `sspids`.
+- **cogdata**. A `data.frame` mapping identifiers from OG and species to proteins/genes.
+- **phyloTree**. A `phylo` object representing a phylogenetic tree where the tips' labels correspond to each species identifiers from `cogdata`.
+- **cogids**. A `data.frame` containing OG identifiers from *cogdata*.
+- **sspids**. A `data.frame` with species identifiers from *cogdata*.
 
-## Objects creation
+The minimal input set for running `geneplast` are the objects *cogdata* and *phyloTree*.
+
+
+# Quick start
+
+Create a new `AnnotationHub` connection and query for all geneplast resources.
+```{r, eval=FALSE}
+library('AnnotationHub')
+ah <- AnnotationHub()
+meta <- query(ah, "geneplast")
+head(meta)
+```
+
+Load the objects into the session using the ID of the chosen dataset.
+```{r, eval=FALSE}
+# Dataset derived from STRING database v11.0
+load(meta[["AH83116"]])
+```
+
+# Objects creation
 
 The general procedure for creating the objects previously described starts by selecting only eukaryotes species from the orthologs database with the aid of [NCBI taxonomy](https://www.ncbi.nlm.nih.gov/taxonomy) classification. 
 
@@ -56,110 +75,97 @@ The `cogids` object consists of unique orthologs identifiers from `cogdata`.
 
 Finally, the `phyloTree` object is built from [TimeTree](http://www.timetree.org/) full eukaryotes phylogenetic tree, which is pruned to show only our species of interest. The missing species are filled using strategies of matching genera and closest species inferred from NCBI's tree previously built.
 
-## Loading a dataset {#loading}
+# Estimated computing time
 
+This section presents elapsed times (ET) for rooting analysis of all OG from *H. sapiens* within different datasets (STRING, OMA, and OrthoDB). We used default values when calling the functions `groot.preprocess` and `groot`. The elapsed times were calculated by the difference of timestamps using [tictoc](https://cran.r-project.org/web/packages/tictoc/index.html) library.
 
-1 - Create a new `AnnotationHub` connection and query for all geneplast resources.
-```{r, eval=FALSE}
-library('AnnotationHub')
-# create an AnnotationHub connection
+```{r eval=FALSE}
+library(AnnotationHub)
+library(dplyr)
+library(geneplast)
+library(tictoc)
+
 ah <- AnnotationHub()
-
-# search for all geneplast resources
 meta <- query(ah, "geneplast")
-
-head(meta)
-```
-2 - Load the objects into the session using the ID of the chosen dataset.
-```{r, eval=FALSE}
-# load the objects from STRING database v11.0
 load(meta[["AH83116"]])
+writeLines(paste("geneplast input data loaded from", meta["AH83116"]$title))
+
+tic("total time")
+tic("preprocessing")
+ogr <- groot.preprocess(cogdata=cogdata, phyloTree=phyloTree, spid="9606")
+toc()
+tic("rooting")
+ogr <- groot(ogr)
+toc()
+toc()
 ```
 
-# Case study: Transfer rooting information to a PPI network
+All runs were performed in a desktop computer with the following specification:
+
+- CPU: Intel Core i7 @ 2.80GHz (7th gen.)
+- RAM: 16 GB
+- Disk: Samsung SSD 970 EVO (NVMe)
+
+<b>Table 1.</b> *Elapsed times for preprocessing and rooting all human orthologs within different datasets.*.
+
+Dataset ID | Source  | Species count | OG count | ET (prep.) | ET (rooting) | ET (total)
+---------- | ------- | ---- | ----- | ----------- | ----------- | --------
+AH83116    | STRING  | 476  | 7702  | 381.96 sec  | 650.59 sec  | 1032.55 sec
+AH83117    | OMA     | 485  | 19614 | 19615 | 466.55 sec | 1618.93 sec | 2085.48 sec
+AH83118    | OrthoDB | 1271 | 10557 | 1143.02 sec | 821.62 sec  | 1964.64 sec
+
+# Working with custom data
+
+Users can build customized datasets by following these steps:
+
+1 - Create a `data.frame` object containing at least 3 columns (`cog_id`, `ssp_id`, and `protein_id`)
+```{r eval=FALSE}
+cogdata <- data.frame(cog_id = cog_ids, ssp_id = ssp_ids, protein_id = protein_ids)
+```
+2 - Create a `phylo` object using the utility function `build.phyloTree`. It requires only the list of species taxonomy identifiers (NCBI taxid).
+```{r eval=FALSE}
+phyloTree <- build.phyloTree(ssp_ids)
+```
+
+# Case studies: Transfer rooting information to a PPI network
 
 This section reproduces a case study using annotated datasets from STRING, OMA, and OrthoDB.
 
-The following steps show how to run geneplast rooting analysis and transfer its results to a graph model. For detailed step-by-step instructions, please check the [geneplast vignette](https://www.bioconductor.org/packages/release/bioc/vignettes/geneplast/inst/doc/geneplast.html#map-rooting-information-on-ppi-networks).
+The following scripts run geneplast rooting analysis and transfer its results to a graph model. For detailed step-by-step instructions, please check the [geneplast vignette](https://www.bioconductor.org/packages/release/bioc/vignettes/geneplast/inst/doc/geneplast.html#map-rooting-information-on-ppi-networks).
 
 ## STRING
-
-### Rooting inference
-1 - Create an object of class 'OGR' for a reference 'spid'.
 
 ```{r, eval=FALSE}
 library(geneplast)
 ogr <- groot.preprocess(cogdata=cogdata, phyloTree=phyloTree, spid="9606")
-```
+ogr <- groot(ogr, nPermutations=1, verbose=TRUE)
 
-2 - Run the `groot` function and infer the evolutionary roots. 
-*Note: this step should take a long processing time due to the large number of OGs in the input data (also, `nPermutations` argument is set to 100 for demonstration purpose only).*
-
-```{r, eval=FALSE}
-ogr <- groot(ogr, nPermutations=100, verbose=TRUE)
-```
-
-
-
-### Graph model for a PPI network
-
-1 - Load a PPI network and required packages. The `igraph` object called 'ppi.gs' provides PPI information for apoptosis and genome-stability genes [@Castro2008].
-
-```{r, eval=FALSE}
 library(RedeR)
 library(igraph)
 library(RColorBrewer)
 data(ppi.gs)
-```
-
-2 - Map rooting information on the `igraph` object.
-
-```{r, eval=FALSE}
 g <- ogr2igraph(ogr, cogdata, ppi.gs, idkey = "ENTREZ")
-```
-
-3 - Adjust colors for rooting information.
-
-```{r, eval=FALSE}
 pal <- brewer.pal(9, "RdYlBu")
 color_col <- colorRampPalette(pal)(37) #set a color for each root!
 g <- att.setv(g=g, from="Root", to="nodeColor", cols=color_col, na.col = "grey80", breaks = seq(1,37))
-```
-
-4 - Aesthetic adjusts for some graph attributes.
-
-```{r, eval=FALSE}
 g <- att.setv(g = g, from = "SYMBOL", to = "nodeAlias")
 E(g)$edgeColor <- "grey80"
 V(g)$nodeLineColor <- "grey80"
-```
-
-5 - Send the `igraph` object to **RedeR** interface.
-
-```{r, eval=FALSE}
 rdp <- RedPort()
 calld(rdp)
 resetd(rdp)
 addGraph(rdp, g)
 addLegend.color(rdp, colvec=g$legNodeColor$scale, size=15, labvec=g$legNodeColor$legend, title="Roots represented in Fig1")
-```
-
-6 - Get apoptosis and genome-stability sub-networks.
-
-```{r, eval=FALSE}
 g1  <- induced_subgraph(g=g, V(g)$name[V(g)$Apoptosis==1])
 g2  <- induced_subgraph(g=g, V(g)$name[V(g)$GenomeStability==1])
-```
-
-7 - Group apoptosis and genome-stability genes into containers.
-
-```{r, eval=FALSE}
 myTheme <- list(nestFontSize=25, zoom=80, isNest=TRUE, gscale=65, theme=2)
 addGraph(rdp, g1, gcoord=c(25, 50), theme = c(myTheme, nestAlias="Apoptosis"))
 addGraph(rdp, g2, gcoord=c(75, 50), theme = c(myTheme, nestAlias="Genome Stability"))
 relax(rdp, p1=50, p2=50, p3=50, p4=50, p5= 50, ps = TRUE)
 ```
+
 ![title](Fig1.png)
+<b>Figure 1.</b> *Inferred evolutionary roots of a protein-protein interaction network*.
 
 ## OMA
 
@@ -174,7 +180,7 @@ human_entrez_2_oma_Aug2020 <- read_delim("processed_human.entrez_2_OMA.Aug2020.t
 names(human_entrez_2_oma_Aug2020) <- c("protein_id", "gene_id")
 cogdata <- cogdata %>% left_join(human_entrez_2_oma_Aug2020)
 ogr <- groot.preprocess(cogdata=cogdata, phyloTree=phyloTree, spid="9606")
-ogr <- groot(ogr, nPermutations=100, verbose=TRUE)
+ogr <- groot(ogr, nPermutations=1, verbose=TRUE)
 
 g <- ogr2igraph(ogr, cogdata, ppi.gs, idkey = "ENTREZ")
 pal <- brewer.pal(9, "RdYlBu")
@@ -210,7 +216,7 @@ human_entrez_2_odb <- read_delim("odb10v1_genes-human-entrez.tsv",
 names(human_entrez_2_odb) <- c("protein_id", "gene_id")
 cogdata <- cogdata %>% left_join(human_entrez_2_odb)
 ogr <- groot.preprocess(cogdata=cogdata, phyloTree=phyloTree, spid="9606")
-ogr <- groot(ogr, nPermutations=100, verbose=TRUE)
+ogr <- groot(ogr, nPermutations=1, verbose=TRUE)
 
 g <- ogr2igraph(ogr, cogdata, ppi.gs, idkey = "ENTREZ")
 pal <- brewer.pal(9, "RdYlBu")
@@ -232,9 +238,6 @@ addGraph(rdp, g2, gcoord=c(75, 50), theme = c(myTheme, nestAlias="Genome Stabili
 relax(rdp, p1=50, p2=50, p3=50, p4=50, p5= 50, ps = TRUE)
 ```
 ![title](Fig3.png)
-
-
-
 
 
 # Session Information

@@ -1,6 +1,6 @@
 Package: geneplast.data
 Title: Input data for the geneplast package via AnnotationHub
-Version: 0.99.6
+Version: 0.99.7
 Authors@R: c(
     person("Leonardo", "Campos", email = "leofields@gmail.com", role = c("aut", "cre")), 
     person("Danilo", "Imparato", email = "imparatodanilo@gmail.com", role = "aut"), 
