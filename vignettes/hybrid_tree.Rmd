@@ -1,0 +1,300 @@
+---
+title: "Untitled"
+---
+
+```{r}
+# Phylogenetics
+library(ape)
+library(treeio)
+
+# tidyverse
+library(tibble)
+library(dplyr)
+library(readr)
+library(purrr)
+
+# Utils
+library(igraph)
+library(geneplast)
+```
+
+# Baixando espécies do string
+
+```{r}
+download.file(
+  url = "https://stringdb-downloads.org/download/species.v12.0.txt",
+  destfile = here::here("data-raw/download/species.v12.0.txt")
+)
+```
+
+# Carregando espécies do string
+
+```{r}
+string_species <- readr::read_tsv(
+  here::here("data-raw/download/species.v12.0.txt"),
+  skip = 1,
+  col_names = c(
+    "taxid",
+    "string_type",
+    "string_name",
+    "ncbi_official_name",
+    "domain"
+  ),
+  col_types = cols_only(
+    taxid = "c",
+    string_name = "c",
+    domain = "c"
+  )
+)
+
+taxa_of_interest <- string_species |> filter(domain == "Eukaryotes")
+```
+
+# Downloading NCBI Taxonomy
+
+```{r}
+options(timeout=300)
+
+download.file(
+  url = "http://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz",
+  destfile = here::here("data-raw/download/taxdump.tar.gz")
+)
+
+untar("data-raw/download/taxdump.tar.gz", exdir = "data-raw/download/taxdump")
+```
+
+# Loading NCBI Taxonomy
+
+```{r}
+# These .dmp files are tricky to read, the following read_delims are very hacky
+# ncbi_merged_ids represents a dictionary mapping old ids to new ones
+ncbi_merged_ids <- readr::read_delim(
+  here::here("data-raw/download/taxdump/merged.dmp"),
+  delim = "|",
+  trim_ws = TRUE,
+  col_names = c("taxid","new_taxid"),
+  col_types = cols_only(
+    taxid = "c",
+    new_taxid = "c"
+  )
+)
+
+ncbi_updated_ids_lookup <- tibble::deframe(ncbi_merged_ids)
+
+# ncbi_edgelist represents the NCBI Taxonomy tree
+ncbi_edgelist <- readr::read_delim(
+  here::here("data-raw/download/taxdump/nodes.dmp"),
+  skip = 1,
+  delim = "|",
+  trim_ws = TRUE,
+  col_names = c("n1","n2","rank"),
+  col_types = "ccc"
+)
+
+ncbi_taxon_names <- readr::read_delim(
+  here::here("data-raw/download/taxdump/names.dmp"),
+  delim = "|",
+  trim_ws = TRUE,
+  col_names = c("name","ncbi_name","type"),
+  col_types = "cc-c"
+)
+```
+
+# Updating STRING taxon IDs
+
+Some organisms taxon IDs are outdated in STRING. We must update them to work with the most recent NCBI Taxonomy data.
+
+```{r}
+taxa_of_interest_updated <-
+  taxa_of_interest |>
+  dplyr::left_join(ncbi_merged_ids) |>
+  dplyr::mutate(new_taxid = dplyr::coalesce(new_taxid, taxid))
+```
+
+# Carrega, limpa e atualiza newick do TimeTree
+
+```{r}
+timetree_tree <- ape::read.tree(
+  file = here::here("data-raw/download/TTOL v5.1 Species Tree - Internal NCBI ID Labelled.nwk")
+)
+
+# We cannot build a working tree with multiple empty labels
+# Therefore we assign unlabelled nodes an arbitrary label. eg: "fix_123"
+unlabelled_nodes_indexes <- timetree_tree$node.label == ""
+number_of_unlabelled_nodes <- sum(unlabelled_nodes_indexes)
+timetree_tree$node.label[unlabelled_nodes_indexes] <- paste0("fix_", 1:number_of_unlabelled_nodes)
+
+# It is much easier to work with the tree as an edgelist dataframe
+# One way to obtain the df is by converting it into an igraph obj, then df
+timetree_graph <- ape::as.igraph.phylo(timetree_tree, directed = TRUE)
+timetree_edgelist <- igraph::as_data_frame(timetree_graph, what = "edges")
+
+# Removing single quotes
+timetree_edgelist$from <- gsub("'", '', timetree_edgelist$from)
+timetree_edgelist$to <- gsub("'", '', timetree_edgelist$to)
+
+# Updating taxon ids
+temp_timetree_edgelist_from <- ncbi_updated_ids_lookup[timetree_edgelist$from]
+temp_timetree_edgelist_to <- ncbi_updated_ids_lookup[timetree_edgelist$to]
+
+timetree_edgelist_updated <- timetree_edgelist
+
+timetree_edgelist_updated$from <- dplyr::coalesce(temp_timetree_edgelist_from, timetree_edgelist$from)
+timetree_edgelist_updated$to <- dplyr::coalesce(temp_timetree_edgelist_from, timetree_edgelist$to)
+```
+
+# Aqui descobrimos quais taxa estão faltando no TimeTree (ou seja, serão enxertados à força). Note que essa busca é feita tanto nas folhas quanto nos vértices internos da árvore.
+
+```{r}
+taxa_of_interest_not_in_timetree <- ! taxa_of_interest_updated$new_taxid %in% c(timetree_edgelist_updated$from, timetree_edgelist_updated$to)
+
+taxa_of_interest_not_in_timetree <- taxa_of_interest_updated[taxa_of_interest_not_in_timetree,]
+```
+
+# Transformando edgelist NCBI Taxonomy em grafo e depois em árvore
+
+Uma forma fácil de obter uma árvore a partir de uma edgelist é convertendo-a primeiro em objeto igraph, e depois em árvore.
+
+```{r}
+# Creates a dictionary that maps taxids to official names
+ncbi_scientific_names <-
+  ncbi_taxon_names |>
+  filter(type == "scientific name") |>
+  dplyr::select(name, ncbi_name)
+
+ncbi_scientific_names_lookup <- tibble::deframe(ncbi_scientific_names)
+
+eukaryota_taxon_id <- subset(ncbi_taxon_names, ncbi_name == "Eukaryota", "name", drop = TRUE)
+
+ncbi_graph <- igraph::graph_from_data_frame(
+  d = ncbi_edgelist[,2:1],
+  directed = TRUE
+)
+
+# Releasing memory
+rm(ncbi_edgelist, ncbi_merged_ids)
+gc()
+
+ncbi_tree <- treeio::as.phylo(ncbi_graph)
+```
+
+# Quais taxa de interesse **não** estão presentes no TimeTree? Esses são os vértices que precisam ser enxertados.
+
+```{r}
+taxids_not_in_timetree <- taxa_of_interest_not_in_timetree$new_taxid
+```
+
+# Para cada taxon faltante, percorrer cada vértice ancestral perguntando se ele existe no TimeTree
+
+```{r}
+ncbi_graph_vids <- igraph::V(ncbi_graph) |> as.numeric() |> as.character()
+
+ncbi_graph_vnames <- igraph::V(ncbi_graph)$name
+
+ncbi_graph_vid_to_vname <- setNames(ncbi_graph_vnames, ncbi_graph_vids)
+
+"%i missing taxa. Looking for the closest available taxa up in the hierarchy. This might take a while..." |> sprintf(length(taxids_not_in_timetree)) |> print()
+  
+timetree_edgelist_patch <- purrr::map_df(
+  .x = taxids_not_in_timetree, 
+  .f = function(current_taxid) {
+    root_vertex_id <- as.numeric(igraph::V(ncbi_graph)[[current_taxid]])
+    
+    found_ancestor <- NULL
+    
+    igraph::dfs(
+      graph = ncbi_graph,
+      root = root_vertex_id,
+      mode = "in",
+      unreachable = FALSE,
+      order = FALSE,
+      in.callback = function(graph, current_vertex, extra) {
+        
+        vertex_id <- as.character(current_vertex[["vid"]])
+        vertex_taxid <- ncbi_graph_vid_to_vname[vertex_id]
+        
+        ancestor_is_in_timetree <- vertex_taxid %in% timetree_edgelist_updated$from
+        
+        if(ancestor_is_in_timetree) {
+          found_ancestor <<- vertex_taxid
+          return(TRUE)
+        }
+        
+        return(FALSE)
+      }
+    )
+    
+    data.frame(from = found_ancestor, to = current_taxid)
+  },
+  .progress = TRUE
+)
+```
+
+# Enxertando ramos novos na árvore do TimeTree
+
+```{r}
+# "Grafting" missing vertices to the TimeTree edgelist
+timetree_edgelist_patched <- rbind(timetree_edgelist_updated, timetree_edgelist_patch)
+
+# It can happen that, after forceful grafting, some edges are duplicated or link to themselves
+# This is not allowed, therefore we remove such occurrences
+timetree_edgelist_patched %<>%
+  unique |>
+  dplyr::filter(from != to)
+
+# Creating an igraph from the grafted tree
+timetree_graph_patched <- igraph::graph_from_data_frame(timetree_edgelist_patched, directed = TRUE)
+```
+
+# Constraining everything to Eukaryotes
+
+This whole process works much better for eukaryotes. The following block extracts the eukaryotic subtree from the complete tree for just the taxa of interest. Any non-eukaryotes are removed after it.
+
+```{r}
+eukaryote_vertex_in_patched_timetree <- igraph::V(timetree_graph_patched)[eukaryota_taxon_id]
+
+leaves_of_interest_in_patched_timetree <- igraph::V(timetree_graph_patched)[taxa_of_interest_updated$new_taxid]
+
+# Traversing the TimeTree graph from the Eukaryota vertex towards the taxa of interest
+eukaryote_paths_in_patched_timetree <- igraph::shortest_paths(
+  graph = timetree_graph_patched,
+  from = eukaryote_vertex_in_patched_timetree,
+  to = leaves_of_interest_in_patched_timetree,
+  mode = "out"
+)$vpath
+
+eukaryote_vertices_in_patched_timetree <- eukaryote_paths_in_patched_timetree |> unlist() |> unique()
+
+timetree_eukaryote_subgraph <- igraph::induced_subgraph(
+  graph = timetree_graph_patched,
+  vids = eukaryote_vertices_in_patched_timetree,
+  impl = "create_from_scratch"
+)
+
+timetree_tree_patched <- treeio::as.phylo(timetree_eukaryote_subgraph)
+```
+
+```{r  fig.height=70, fig.width=8.5}
+timetree_tree_patched <- geneplast:::rotatePhyloTree(timetree_tree_patched, "9606")
+
+tip_came_from_patch <- timetree_tree_patched$tip.label %in% timetree_edgelist_patch$to
+
+timetree_tree_patched$tip.color <- ifelse(tip_came_from_patch, yes = "#FF0000", no = "#000000")
+timetree_tree_patched$tip.label <- ncbi_scientific_names_lookup[timetree_tree_patched$tip.label]
+timetree_tree_patched$edge.length <- NULL
+
+pdf(file = here::here("hybrid_tree_2023_2.pdf"), height = 70, width = 10)
+
+plot(
+  timetree_tree_patched,
+  type       = "cladogram",
+  tip.color  = timetree_tree_patched$tip.color,
+  edge.color = "#bbbbbb",
+  cex        = 0.3,
+  edge.width = 0.1,
+  no.margin  = T,
+  direction  = "rightwards"
+)
+
+dev.off()
+```
