@@ -30,7 +30,7 @@ knitr::opts_chunk$set(
 is designed for large-scale evolutionary plasticity and rooting analysis based on 
 orthologs groups (OG) distribution in a given species tree.
 This supporting package provides datasets obtained and processed from different 
-orthologs databases for use in geneplast evolutionary analyses.
+orthologs databases for geneplast evolutionary analyses.
 
 Currently, data from the following sources are available:
 
@@ -66,70 +66,48 @@ load(meta[["AH83116"]])
 
 # Objects creation
 
-The general procedure for creating the objects previously described starts by selecting only eukaryotes species from the orthologs database with the aid of [NCBI taxonomy](https://www.ncbi.nlm.nih.gov/taxonomy) classification. 
+The general procedure for creating previously described objects starts by selecting only eukaryotes from the orthologs database with [NCBI taxonomy](https://www.ncbi.nlm.nih.gov/taxonomy) classification. 
 
 We build a graph from taxonomy nodes and locate the root of eukaryotes. Then, we traverse this sub-graph from root to leaves corresponding to the taxonomy identifiers of the species in the database. By selecting the leaves of the resulting sub-graph, we obtain the `sspids` object.
 
 Once the species of interest are selected, the orthology information of corresponding proteins is filtered to obtain the `cogdata` object.
 The `cogids` object consists of unique orthologs identifiers from `cogdata`.
 
-Finally, the `phyloTree` object is built from [TimeTree](http://www.timetree.org/) full eukaryotes phylogenetic tree, which is pruned to show only our species of interest. The missing species are filled using strategies of matching genera and closest species inferred from NCBI's tree previously built.
-
-# Estimated computing time
-
-This section presents elapsed times (ET) for rooting analysis of all OG from *H. sapiens* within different datasets (STRING, OMA, and OrthoDB). We used default values when calling the functions `groot.preprocess` and `groot`. The elapsed times were calculated by the difference of timestamps using [tictoc](https://cran.r-project.org/web/packages/tictoc/index.html) library.
-
-```{r eval=FALSE}
-library(AnnotationHub)
-library(dplyr)
-library(geneplast)
-library(tictoc)
-
-ah <- AnnotationHub()
-meta <- query(ah, "geneplast")
-load(meta[["AH83116"]])
-writeLines(paste("geneplast input data loaded from", meta["AH83116"]$title))
-
-tic("total time")
-tic("preprocessing")
-ogr <- groot.preprocess(cogdata=cogdata, phyloTree=phyloTree, spid="9606")
-toc()
-tic("rooting")
-ogr <- groot(ogr)
-toc()
-toc()
-```
-
-All runs were performed in a desktop computer with the following specification:
-
-- CPU: Intel Core i7 @ 2.80GHz (7th gen.)
-- RAM: 16 GB
-- Disk: Samsung SSD 970 EVO (NVMe)
-
-<b>Table 1.</b> *Elapsed times for preprocessing and rooting all human orthologs within different datasets.*.
-
-Dataset ID | Source  | Species count | OG count | ET (prep.) | ET (rooting) | ET (total)
----------- | ------- | ---- | ----- | ----------- | ----------- | --------
-AH83116    | STRING  | 476  | 7702  | 381.96 sec  | 650.59 sec  | 1032.55 sec
-AH83117    | OMA     | 485  | 19614 | 19615 | 466.55 sec | 1618.93 sec | 2085.48 sec
-AH83118    | OrthoDB | 1271 | 10557 | 1143.02 sec | 821.62 sec  | 1964.64 sec
+Finally, the `phyloTree` object is built from [TimeTree](http://www.timetree.org/) full eukaryotes phylogenetic tree, which is pruned to show only our species of interest. The missing species are filled using strategies of matching genera and the closest species inferred from NCBI's tree previously built.
 
 # Working with custom data
 
 Users can build customized datasets by following these steps:
 
-1 - Create a `data.frame` object containing at least 3 columns (`cog_id`, `ssp_id`, and `protein_id`)
+1 - Create a `data.frame` object containing at least three columns (`cog_id`, `ssp_id`, and `protein_id`)
 ```{r eval=FALSE}
+# Sample data for demonstration purposes
+cog_ids <- c("OG1", "OG2", "OG3")
+ssp_ids <- c("9606", "3702", "9544", "9615", "7955")
+protein_ids <- c("PROT001", "PROT002", "PROT003", "PROT004", "PROT005")
+
 cogdata <- data.frame(cog_id = cog_ids, ssp_id = ssp_ids, protein_id = protein_ids)
 ```
-2 - Create a `phylo` object using the utility function `build.phyloTree`. It requires only the list of species taxonomy identifiers (NCBI taxid).
+
+2 - Create a `phylo` object using the function `make_phylo_tree` provided by this package. It accepts two input formats: [`sspids`] or [`newick`].
 ```{r eval=FALSE}
-phyloTree <- build.phyloTree(ssp_ids)
+library(geneplast.data)
 ```
+
+2.1 - From a list of species identifiers (NCBI taxon ID):
+```{r eval=FALSE}
+phyloTree <- make_phylo_tree(sspids = ssp_ids)
+```
+
+2.1 - From your own phylogenetic tree in `newick` file format:
+```{r eval=FALSE}
+phyloTree <- make_phylo_tree(newick = "path/to/newick_tree.nwk")
+```
+*Note: the tips' labels from the custom tree should be listed in 'cogdata' object to properly perform the analysis.*
 
 # Case studies: Transfer rooting information to a PPI network
 
-This section reproduces a case study using annotated datasets from STRING, OMA, and OrthoDB.
+This section reproduces a case study using STRING, OMA, and OrthoDB annotated datasets.
 
 The following scripts run geneplast rooting analysis and transfer its results to a graph model. For detailed step-by-step instructions, please check the [geneplast vignette](https://www.bioconductor.org/packages/release/bioc/vignettes/geneplast/inst/doc/geneplast.html#map-rooting-information-on-ppi-networks).
 
@@ -155,7 +133,7 @@ rdp <- RedPort()
 calld(rdp)
 resetd(rdp)
 addGraph(rdp, g)
-addLegend.color(rdp, colvec=g$legNodeColor$scale, size=15, labvec=g$legNodeColor$legend, title="Roots represented in Fig1")
+addLegend.color(rdp, colvec=g$legNodeColor$scale, size=15, labvec=g$legNodeColor$legend, title="Roots inferred from geneplast")
 g1  <- induced_subgraph(g=g, V(g)$name[V(g)$Apoptosis==1])
 g2  <- induced_subgraph(g=g, V(g)$name[V(g)$GenomeStability==1])
 myTheme <- list(nestFontSize=25, zoom=80, isNest=TRUE, gscale=65, theme=2)
@@ -193,7 +171,7 @@ V(g)$nodeLineColor <- "grey80"
 # calld(rdp)
 resetd(rdp)
 addGraph(rdp, g)
-addLegend.color(rdp, colvec=g$legNodeColor$scale, size=15, labvec=g$legNodeColor$legend, title="Roots represented in Fig2")
+addLegend.color(rdp, colvec=g$legNodeColor$scale, size=15, labvec=g$legNodeColor$legend, title="Roots inferred from geneplast")
 g1  <- induced_subgraph(g=g, V(g)$name[V(g)$Apoptosis==1])
 g2  <- induced_subgraph(g=g, V(g)$name[V(g)$GenomeStability==1])
 myTheme <- list(nestFontSize=25, zoom=80, isNest=TRUE, gscale=65, theme=2)
@@ -229,7 +207,7 @@ rdp <- RedPort()
 calld(rdp)
 resetd(rdp)
 addGraph(rdp, g)
-addLegend.color(rdp, colvec=g$legNodeColor$scale, size=15, labvec=g$legNodeColor$legend, title="Roots represented in Fig3")
+addLegend.color(rdp, colvec=g$legNodeColor$scale, size=15, labvec=g$legNodeColor$legend, title="Roots inferred from geneplast")
 g1  <- induced_subgraph(g=g, V(g)$name[V(g)$Apoptosis==1])
 g2  <- induced_subgraph(g=g, V(g)$name[V(g)$GenomeStability==1])
 myTheme <- list(nestFontSize=25, zoom=80, isNest=TRUE, gscale=65, theme=2)
@@ -238,6 +216,45 @@ addGraph(rdp, g2, gcoord=c(75, 50), theme = c(myTheme, nestAlias="Genome Stabili
 relax(rdp, p1=50, p2=50, p3=50, p4=50, p5= 50, ps = TRUE)
 ```
 ![title](Fig3.png)
+
+# Estimated computing time
+
+This section presents elapsed times (ET) for rooting analysis of all OG from *H. sapiens* within different datasets (STRING, OMA, and OrthoDB). We used default values when calling the functions `groot.preprocess` and `groot`. The elapsed times were calculated by the difference of timestamps using [tictoc](https://cran.r-project.org/web/packages/tictoc/index.html) library.
+
+```{r eval=FALSE}
+library(AnnotationHub)
+library(dplyr)
+library(geneplast)
+library(tictoc)
+
+ah <- AnnotationHub()
+meta <- query(ah, "geneplast")
+load(meta[["AH83116"]])
+writeLines(paste("geneplast input data loaded from", meta["AH83116"]$title))
+
+tic("total time")
+tic("preprocessing")
+ogr <- groot.preprocess(cogdata=cogdata, phyloTree=phyloTree, spid="9606")
+toc()
+tic("rooting")
+ogr <- groot(ogr)
+toc()
+toc()
+```
+
+We performed all runs  on a desktop computer with the following specification:
+
+- CPU: Intel Core i7 @ 2.80GHz (7th gen.)
+- RAM: 16 GB
+- Disk: Samsung SSD 970 EVO (NVMe)
+
+<b>Table 1.</b> *Elapsed times for preprocessing and rooting all human orthologs within different datasets*.
+
+Dataset ID | Source  | Species count | OG count | ET (prep.) | ET (rooting) | ET (total)
+---------- | ------- | ---- | ------ | ------------- | -------------- | --------------
+AH83116    | STRING  | 476  | 7702   | 6 min 22 sec  | 10 min 50 sec  | 17 min 12 sec
+AH83117    | OMA     | 485  | 19614  | 7 min 46 sec  | 26 min 58 sec  | 34 min 45 sec
+AH83118    | OrthoDB | 1271 | 10557  | 19 min 3 sec  | 13 min 41 sec  | 32 min 44 sec
 
 
 # Session Information

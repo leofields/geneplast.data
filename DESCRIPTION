@@ -12,6 +12,14 @@ Description: The package geneplast.data provides
     among eukaryotes from different orthologs databases.
 Depends: R (>= 4.0)
 Imports: 
+    ape, 
+    treeio, 
+    tibble, 
+    dplyr,
+    readr,
+    purrr,
+    igraph,
+    geneplast
 Suggests: geneplast, BiocGenerics, BiocStyle, knitr, rmarkdown
 VignetteBuilder: knitr
 License: Artistic-2.0

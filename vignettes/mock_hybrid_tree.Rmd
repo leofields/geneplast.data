@@ -1,0 +1,107 @@
+---
+title: "Untitled"
+---
+
+```{r}
+library(ape)
+library(phytools)
+library(treeio)
+library(tidyverse)
+library(magrittr)
+library(igraph)
+library(neurotransmissionevolution)
+```
+
+# Simulando newick TimeTree
+
+```{r}
+timetree_tree <- ape::read.tree(text = "(((A1,A2)A,(B1,B2)B)ABC,D)ABCD;")
+
+timetree_graph <- ape::as.igraph.phylo(timetree_tree, directed = TRUE)
+
+timetree_edgelist <- igraph::as_data_frame(timetree_graph, what = "edges")
+```
+
+# Simulando edgelist NCBI Taxonomy
+
+```{r}
+ncbi_edgelist <- tibble::tribble(
+   ~from,   ~to,
+  "ABCD",   "D",
+  "ABCD", "ABC",
+   "ABC",   "A",
+   "ABC",   "B",
+   "ABC",   "C",
+     "C",  "C1",
+     "C",  "C2",
+     "B",  "B1",
+     "B",  "B2",
+     "A",  "A1",
+     "A",  "A2"
+)
+
+
+ncbi_graph <- graph_from_data_frame(ncbi_edgelist, directed = TRUE)
+
+ncbi_tree <- treeio::as.phylo(ncbi_graph)
+```
+
+# Quais folhas do NCBI Taxonomy não estão presentes no TimeTree?
+
+```{r}
+leaves_not_in_timetree <- ncbi_tree$tip.label[!ncbi_tree$tip.label %in% timetree_tree$tip.label]
+```
+
+# Para cada folha faltante, percorrer cada vértice ancestral perguntando se ele existe no TimeTree
+
+```{r}
+ncbi_graph_vids <- V(ncbi_graph) %>% as.numeric %>% as.character
+
+ncbi_graph_vnames <- V(ncbi_graph)$name
+
+ncbi_graph_vid_to_vname <- set_names(ncbi_graph_vnames, ncbi_graph_vids)
+  
+timetree_edgelist_patch <- map_df(leaves_not_in_timetree, function(current_leaf) {
+  current_leaf_id <- as.numeric(V(ncbi_graph)[[current_leaf]])
+  
+  found_ancestor <- NULL
+  
+  dfs(
+    graph = ncbi_graph,
+    root = current_leaf_id,
+    mode = "in",
+    unreachable = FALSE,
+    order = FALSE,
+    in.callback = function(graph, current_vertex, extra) {
+      
+      vertex_id <- as.character(current_vertex[["vid"]])
+      vertex_name <- ncbi_graph_vid_to_vname[vertex_id]
+      
+      ancestor_is_in_timetree <- vertex_name %in% timetree_edgelist$from
+      
+      "checking if {vertex_name} is in timetree ({ancestor_is_in_timetree})" %>% str_glue %>% print
+      
+      if(ancestor_is_in_timetree) {
+        found_ancestor <<- vertex_name
+        return(TRUE)
+      }
+      
+      return(FALSE)
+    }
+  )
+  
+  data.frame(from = found_ancestor, to = current_leaf)
+})
+```
+
+# Enxertando ramos novos na árvore do TimeTree
+
+```{r}
+timetree_edgelist_patched <- timetree_edgelist %>% rbind(timetree_edgelist_patch)
+
+timetree_graph_patched <- graph_from_data_frame(ncbi_edgelist, directed = TRUE)
+
+timetree_tree_patched <- treeio::as.phylo(timetree_graph_patched)
+
+plot(timetree_tree_patched)
+```
