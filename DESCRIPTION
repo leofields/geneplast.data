@@ -19,7 +19,8 @@ Imports:
     readr,
     purrr,
     igraph,
-    geneplast
+    geneplast,
+    BiocFileCache
 Suggests: geneplast, BiocGenerics, BiocStyle, knitr, rmarkdown
 VignetteBuilder: knitr
 License: Artistic-2.0

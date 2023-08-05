@@ -89,21 +89,15 @@ protein_ids <- c("PROT001", "PROT002", "PROT003", "PROT004", "PROT005")
 cogdata <- data.frame(cog_id = cog_ids, ssp_id = ssp_ids, protein_id = protein_ids)
 ```
 
-2 - Create a `phylo` object using the function `make_phylo_tree` provided by this package. It accepts two input formats: [`sspids`] or [`newick`].
+2 - Create a `phylo` object using the function `make.phyloTree` provided by this package. The user should provide either a list of species identifiers (NCBI taxon IDs) or a `newick` file as input.
 ```{r eval=FALSE}
 library(geneplast.data)
+# Create from a list of species of interest
+phyloTree <- make.phyloTree(sspids = ssp_ids)
+# Or create from a user's predefined newick file
+phyloTree <- make.phyloTree(newick = "path/to/newick_tree.nwk")
 ```
-
-2.1 - From a list of species identifiers (NCBI taxon ID):
-```{r eval=FALSE}
-phyloTree <- make_phylo_tree(sspids = ssp_ids)
-```
-
-2.1 - From your own phylogenetic tree in `newick` file format:
-```{r eval=FALSE}
-phyloTree <- make_phylo_tree(newick = "path/to/newick_tree.nwk")
-```
-*Note: the tips' labels from the custom tree should be listed in 'cogdata' object to properly perform the analysis.*
+*Note: the tips' labels from the custom newick tree should be listed in 'cogdata' object to properly perform the analysis.*
 
 # Case studies: Transfer rooting information to a PPI network
 
