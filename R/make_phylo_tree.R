@@ -7,7 +7,7 @@
 #' @return phylo object
 #' @export
 #' @author Danilo O Imparato
-make_phylo_tree <- function(sspids=NULL, newick=NULL, verbose=TRUE){
+make.phyloTree <- function(sspids=NULL, newick=NULL, verbose=TRUE){
     check_args(sspids, newick)
     if(!is.null(newick)) {
         phylo <- treeio::read.newick(newick)
@@ -15,12 +15,10 @@ make_phylo_tree <- function(sspids=NULL, newick=NULL, verbose=TRUE){
     }
     if(verbose)cat("-Building eukaryotes tree from sspids...\n")
     taxa_of_interest <- check_sspids(sspids)
-
-    options(timeout=300)
-    download_if_missing("http://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz")
-    untar("data-raw/download/taxdump.tar.gz", exdir = "data-raw/download/taxdump")
+    download_and_extract(verbose)
+    bfc <- .get_cache()
     ncbi_merged_ids <- readr::read_delim(
-      "data-raw/download/taxdump/merged.dmp",
+      paste0(BiocFileCache::bfccache(bfc), "/merged.dmp"),
       delim = "|",
       trim_ws = TRUE,
       col_names = c("taxid","new_taxid"),
@@ -31,7 +29,7 @@ make_phylo_tree <- function(sspids=NULL, newick=NULL, verbose=TRUE){
     )
     ncbi_updated_ids_lookup <- tibble::deframe(ncbi_merged_ids)
     ncbi_edgelist <- readr::read_delim(
-      here::here("data-raw/download/taxdump/nodes.dmp"),
+      paste0(BiocFileCache::bfccache(bfc), "/nodes.dmp"),
       skip = 1,
       delim = "|",
       trim_ws = TRUE,
@@ -39,7 +37,7 @@ make_phylo_tree <- function(sspids=NULL, newick=NULL, verbose=TRUE){
       col_types = "ccc"
     )
     ncbi_taxon_names <- readr::read_delim(
-      here::here("data-raw/download/taxdump/names.dmp"),
+      paste0(BiocFileCache::bfccache(bfc), "/names.dmp"),
       delim = "|",
       trim_ws = TRUE,
       col_names = c("name","ncbi_name","type"),

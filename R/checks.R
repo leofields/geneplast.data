@@ -1,11 +1,4 @@
 
-download_if_missing <- function(url, filename = basename(url)) {
-    filename <- here::here("data-raw/download", filename)
-    if (!file.exists(filename)) {
-        download.file(url, filename)
-    }
-}
-
 check_args <- function(arg1, arg2) {
     b1<-is.character(arg1) || is.integer(arg1) || is.numeric(arg1)
     b2<-is.matrix(arg1) || is.data.frame(arg1)
