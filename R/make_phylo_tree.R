@@ -2,9 +2,10 @@
 #'
 #'
 #'
-#' @param sspids A vector or dataframe containing NCBI Taxon IDs from the species of interest.
-#' @param newick A newick file.
-#' @return phylo object
+#' @param sspids a vector or data frame containing NCBI Taxon IDs from the species of interest.
+#' @param newick a rooted phylogenetic tree in Newick format.
+#' @param verbose a logical value specifying whether or not to display detailed messages.
+#' @return An object of class "phylo".
 #' @export
 #' @author Danilo O Imparato
 make.phyloTree <- function(sspids=NULL, newick=NULL, verbose=TRUE){
@@ -93,26 +94,19 @@ make.phyloTree <- function(sspids=NULL, newick=NULL, verbose=TRUE){
     ncbi_tree <- treeio::as.phylo(ncbi_graph)
     if(verbose)cat("-NCBI tree created.\n")
 
-    # Which taxa of interest are NOT in TimeTree?
-    # Those vertices need to be grafted
+    # Vertices from taxa of interest not present in TimeTree must be grafted
     taxids_not_in_timetree <- taxa_of_interest_not_in_timetree$new_taxid
 
-    #'
-    #' # Para cada taxon faltante, percorrer cada vértice ancestral perguntando se ele existe no TimeTree
-    #'
-    ## -------------------------------------------------------------------------------------------------------
+    # For each missing taxon, go through each ancestral vertex checking if it exists in TimeTree
     ncbi_graph_vids <- igraph::V(ncbi_graph) |> as.numeric() |> as.character()
-
     ncbi_graph_vnames <- igraph::V(ncbi_graph)$name
-
     ncbi_graph_vid_to_vname <- setNames(ncbi_graph_vnames, ncbi_graph_vids)
 
-    if(verbose) {
+    if(verbose && length(taxids_not_in_timetree) > 0) {
         "%i missing taxa. Looking for the closest available taxa up in the hierarchy. This might take a while..." |>
             sprintf(length(taxids_not_in_timetree)) |>
             cat()
     }
-
     timetree_edgelist_patch <- purrr::map_df(
       .x = taxids_not_in_timetree,
       .f = function(current_taxid) {
@@ -160,12 +154,8 @@ make.phyloTree <- function(sspids=NULL, newick=NULL, verbose=TRUE){
     timetree_graph_patched <- igraph::graph_from_data_frame(timetree_edgelist_patched, directed = TRUE)
     if(verbose)cat("-Grafted tree created.\n")
 
-    #'
-    #' # Constraining everything to Eukaryotes
-    #'
-    #' This whole process works much better for eukaryotes. The following block extracts the eukaryotic subtree from the complete tree for just the taxa of interest. Any non-eukaryotes are removed after it.
-    #'
-    ## -------------------------------------------------------------------------------------------------------
+    # Extract the eukaryotic subtree from the complete tree for just the taxa of interest.
+    # Any non-eukaryotes are discarded after it.
     eukaryote_vertex_in_patched_timetree <- igraph::V(timetree_graph_patched)[eukaryota_taxon_id]
 
     leaves_of_interest_in_patched_timetree <- igraph::V(timetree_graph_patched)[taxa_of_interest_updated$new_taxid]
@@ -187,10 +177,8 @@ make.phyloTree <- function(sspids=NULL, newick=NULL, verbose=TRUE){
     )
 
     timetree_tree_patched <- treeio::as.phylo(timetree_eukaryote_subgraph)
-    #tip_came_from_patch <- timetree_tree_patched$tip.label %in% timetree_edgelist_patch$to
-    #timetree_tree_patched$tip.color <- ifelse(tip_came_from_patch, yes = "#FF0000", no = "#000000")
     timetree_tree_patched$tip.alias <- ncbi_scientific_names_lookup[timetree_tree_patched$tip.label]
-    #timetree_tree_patched$edge.length <- NULL
+    timetree_tree_patched$edge.length <- NULL
     if(verbose)cat("-Eukaryotes tree created.\n")
     timetree_tree_patched
 }
