@@ -51,7 +51,8 @@ make.phyloTree <- function(sspids=NULL, newick=NULL, verbose=TRUE){
 
     if(verbose)cat("-Loading full TimeTree species tree...\n")
     timetree_tree <- ape::read.tree(
-      file = file.path("inst/extdata/TTOL v5.1 Species Tree - Internal NCBI ID Labelled.nwk")
+      file = system.file("extdata", "TTOL v5.1 Species Tree - Internal NCBI ID Labelled.nwk",
+                         package = "geneplast.data", mustWork = TRUE)
     )
     # We cannot build a working tree with multiple empty labels
     # Therefore we assign unlabelled nodes an arbitrary label. eg: "fix_123"
