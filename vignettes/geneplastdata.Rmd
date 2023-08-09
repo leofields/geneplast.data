@@ -213,7 +213,7 @@ relax(rdp, p1=50, p2=50, p3=50, p4=50, p5= 50, ps = TRUE)
 
 # Estimated computing time
 
-This section presents elapsed times (ET) for rooting analysis of all OG from *H. sapiens* within different datasets (STRING, OMA, and OrthoDB). We used default values when calling the functions `groot.preprocess` and `groot`. The elapsed times were calculated by the difference of timestamps using [tictoc](https://cran.r-project.org/web/packages/tictoc/index.html) library.
+This section presents elapsed times (ET) for *geneplast* rooting analysis of all OG from *H. sapiens* within different datasets (STRING, OMA, and OrthoDB). We used default values when calling the functions `groot.preprocess` and `groot`. The elapsed times were calculated by the difference of timestamps using [tictoc](https://cran.r-project.org/web/packages/tictoc/index.html) library.
 
 ```{r eval=FALSE}
 library(AnnotationHub)

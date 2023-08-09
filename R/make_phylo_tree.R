@@ -1,13 +1,19 @@
 #' Build a `phyloTree` object for geneplast
 #'
-#'
+#' @description
+#' This function has two optional arguments that define its behavior depending on
+#' which one is provided.
+#' Given a list of species' NCBI Taxonomy IDs, `make.phyloTree()` builds a
+#' phylogenetic tree by merging the TimeTree and NCBI Taxonomy databases.
+#' If given a newick file, it simply forwards the argument to [treeio::read.newick()].
 #'
 #' @param sspids a vector or data frame containing NCBI Taxon IDs from the species of interest.
-#' @param newick a rooted phylogenetic tree in Newick format.
+#' @param newick a phylogenetic tree in Newick format.
 #' @param verbose a logical value specifying whether or not to display detailed messages.
 #' @return An object of class "phylo".
 #' @export
 #' @author Danilo O Imparato
+#' @author Leonardo RS Campos
 make.phyloTree <- function(sspids=NULL, newick=NULL, verbose=TRUE){
     check_args(sspids, newick)
     if(!is.null(newick)) {

@@ -9,7 +9,7 @@ make.phyloTree(sspids = NULL, newick = NULL, verbose = TRUE)
 \arguments{
 \item{sspids}{a vector or data frame containing NCBI Taxon IDs from the species of interest.}
 
-\item{newick}{a rooted phylogenetic tree in Newick format.}
+\item{newick}{a phylogenetic tree in Newick format.}
 
 \item{verbose}{a logical value specifying whether or not to display detailed messages.}
 }
@@ -17,8 +17,14 @@ make.phyloTree(sspids = NULL, newick = NULL, verbose = TRUE)
 An object of class "phylo".
 }
 \description{
-Build a `phyloTree` object for geneplast
+This function has two optional arguments that define its behavior depending on
+which one is provided.
+Given a list of species' NCBI Taxonomy IDs, `make.phyloTree()` builds a
+phylogenetic tree by merging the TimeTree and NCBI Taxonomy databases.
+If given a newick file, it simply forwards the argument to [treeio::read.newick()].
 }
 \author{
 Danilo O Imparato
+
+Leonardo RS Campos
 }
