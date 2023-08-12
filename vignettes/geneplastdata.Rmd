@@ -45,9 +45,6 @@ Each dataset consists of four objects used as input for geneplast:
 - **cogids**. A `data.frame` containing OG identifiers from *cogdata*.
 - **sspids**. A `data.frame` with species identifiers from *cogdata*.
 
-The minimal input set for running `geneplast` are the objects *cogdata* and *phyloTree*.
-
-
 # Quick start
 
 Create a new `AnnotationHub` connection and query for all geneplast resources.
@@ -77,28 +74,100 @@ Finally, the `phyloTree` object is built from [TimeTree](http://www.timetree.org
 
 # Working with custom data
 
-Users can build customized datasets by following these steps:
+Users are encouraged to use preprocessed datasets from `AnnotationHUB` since they've already been validated for `geneplast` analysis. However, it is possible to build customized datasets from any source of orthology information, provided they follow some requirements. This section presents an example with mock data on how to build the input data objects for `geneplast` package.
 
-1 - Create a `data.frame` object containing at least three columns (`cog_id`, `ssp_id`, and `protein_id`)
-```{r eval=FALSE}
-# Sample data for demonstration purposes
-og1 <- expand.grid(cog_id = c("OG1"), ssp_id = c("9606", "9598", "9595", "9544", "9555", "10116", "10090", "9615", "9031", "9103", "8364", "7897", "7955"))
-og2 <- expand.grid(cog_id = c("OG2"), ssp_id = c("9606", "9598", "9595", "9544", "9555", "10116", "9615"))
-og3 <- expand.grid(cog_id = c("OG3"), ssp_id = c("9606", "9598", "9595", "13616"))
-cogdata <- rbind(og1, og2, og3)
-cogdata$protein_id <- paste0(cogdata$ssp_id, ".", cogdata$cog_id)
+The minimal input set for running `geneplast` are: 1) a `data.frame` object **cogdata**, and 2) a `phylo` object **phyloTree**. 
+
+The `cogdata` table maps proteins to OGs and species, and must have at least three columns: 1) a protein identifier column **protein_id**, 2) an OG identifier column **cog_id**, and a species identifier column **ssp_id**.
+
+Suppose the user have collected orthology information between proteins from the following species:
+```{r}
+species <- data.frame (
+    label = c("sp01", "sp02", "sp03", "sp04", "sp05", "sp06", "sp07", "sp08", "sp09", "sp10", "sp11", "sp12", "sp13", "sp14", "sp15"),
+                scientific_name = c("Homo sapiens", "Pan troglodytes", "Gorilla gorilla gorilla", "Macaca mulatta", "Papio anubis", "Rattus norvegicus", "Mus musculus", "Canis lupus familiaris", "Marmosa mexicana", "Monodelphis domestica", "Gallus gallus", "Meleagris gallopavo", "Xenopus tropicalis", "Latimeria chalumnae", "Danio rerio"),
+                taxon_id = c("9606", "9598", "9595", "9544", "9555", "10116", "10090", "9615", "225402", "13616", "9031", "9103", "8364", "7897", "7955")
+)
+species
 ```
-2 - Create a `phylo` object using the function `make.phyloTree` provided by this package. The user should provide either a list of species identifiers (NCBI taxon IDs) or a `newick` file as input.
-```{r eval=FALSE}
+The user's dataset have 3 orthologous groups identified as: *OG1*, *OG2*, and *OG3*. The proteins whithin each OG are identified by a combination of a species label plus a protein ID (ex.: *"spXX.protXx"*).
+```{r}
+og1 <- expand.grid(cog_id = "OG1", 
+                   protein_id = c(
+    "sp01.prot1a", "sp01.prot1b", "sp01.prot1c", "sp01.prot1d", "sp01.prot1e", "sp01.prot1f", "sp01.prot1g", 
+    "sp02.prot1a", "sp02.prot1b", "sp02.prot1c", "sp02.prot1d", "sp02.prot1e", "sp02.prot1f", 
+    "sp03.prot1a", "sp03.prot1b", "sp03.prot1c", 
+    "sp04.prot1a", "sp04.prot1b", "sp04.prot1c", "sp04.prot1d", 
+    "sp05.prot1a", "sp05.prot1b", "sp05.prot1c", "sp05.prot1d", "sp05.prot1e",
+    "sp06.prot1a", "sp06.prot1b",
+    "sp07.prot1a", "sp07.prot1b", "sp07.prot1c",
+    "sp08.prot1a", "sp08.prot1b",
+    "sp11.prot1a", "sp11.prot1b", "sp11.prot1c",
+    "sp12.prot1a", "sp12.prot1b", "sp12.prot1c",
+    "sp13.prot1a", "sp13.prot1b",
+    "sp14.prot1",
+    "sp15.prot1a", "sp15.prot1b"
+    )
+)
+og2 <- expand.grid(cog_id = "OG2", 
+                   protein_id = c(
+    "sp01.prot2a", "sp01.prot2b", "sp01.prot2c", "sp01.prot2d", "sp01.prot2e", "sp01.prot2f",
+    "sp02.prot2a", "sp02.prot2b", "sp02.prot2c",
+    "sp03.prot2a", "sp03.prot2b", "sp03.prot2c", "sp03.prot2d",
+    "sp04.prot2a", "sp04.prot2b", "sp04.prot2c",
+    "sp05.prot2a", "sp05.prot2b", "sp05.prot2c", "sp05.prot2d",
+    "sp06.prot2",
+    "sp08.prot2a", "sp08.prot2b"
+    )
+)
+og3 <- expand.grid(cog_id = "OG3", 
+                   protein_id = c(
+    "sp01.prot3a", "sp01.prot3b", "sp01.prot3c", "sp01.prot3d", 
+    "sp02.prot3a", "sp02.prot3b", "sp02.prot3c",
+    "sp03.prot3",
+    "sp10.prot3"
+    )
+)
+```
+To build the **cogdata** object, the user should bind the OGs in a single `data.frame`. Furthermore, the required column **ssp_id** must be added to the data frame. In the current example, this is done by splitting the species label from the **protein_id** column and replacing it with the corresponding **taxon_id** value.
+```{r}
+library(tibble)
+library(stringi)
+library(dplyr)
+# Bind OGs into a single object
+cogdata <- rbind(og1, og2, og3)
+# Create a dictionary to map species labels to taxon IDs
+species_taxid_lookup <- species |> dplyr::select(label, taxon_id) |> tibble::deframe()
+species_name_lookup <- species |> dplyr::select(taxon_id, scientific_name) |> tibble::deframe()
+# Add the required ssp_id column
+cogdata[["ssp_id"]] <- species_taxid_lookup[stri_split_fixed(cogdata[["protein_id"]], pattern = ".", n = 2, simplify = T)[,1]]
+head(cogdata)
+```
+To create the **phyloTree** object, the user can use the `make.phyloTree()` function provided by `geneplast.data` package. This function has two optional arguments (`sspids` and `newick`) that define its behavior depending on which one is provided. 
+
+Given a list of species' NCBI Taxonomy IDs `sspids`, it builds a phylogenetic tree by merging the TimeTree and NCBI Taxonomy databases:
+```{r}
 library(geneplast.data)
-# Create from a list of species of interest
-species <- read.csv("sample_species.txt")
-phyloTree <- make.phyloTree(sspids = species$taxid)
-# Or create from a user's predefined newick file
-phyloTree <- make.phyloTree(newick = "path/to/newick_tree.nwk")
+phyloTree <- geneplast.data::make.phyloTree(sspids = species$taxon_id)
+phyloTree
+```
+Alternatively, the user could provide a `newick` file describing the species phylogenetic tree.
+*Note: the tips' labels from the custom newick tree should be listed in 'cogdata' object to properly perform the analysis.*
+```{r eval=FALSE}
+# Create from a user's predefined newick file
+phyloTree <- geneplast.data::make.phyloTree(newick = "path/to/newick_tree.nwk")
+```
+Plot the resulting phylogenetic tree:
+```{r}
+library(geneplast)
+phyloTree <- geneplast:::rotatePhyloTree(phyloTree, "9606")
+phyloTree$edge.length <- NULL
+phyloTree$tip.label <- species_name_lookup[phyloTree$tip.label]
 plot(phyloTree, type = "cladogram")
 ```
-*Note: the tips' labels from the custom newick tree should be listed in 'cogdata' object to properly perform the analysis.*
+
+<b>Figure 1.</b> *Sample phylogenetic tree built with `make.phyloTree()` function*.
+
+
 
 # Case studies: Transfer rooting information to a PPI network
 
@@ -138,7 +207,7 @@ relax(rdp, p1=50, p2=50, p3=50, p4=50, p5= 50, ps = TRUE)
 ```
 
 ![title](Fig1.png)
-<b>Figure 1.</b> *Inferred evolutionary roots of a protein-protein interaction network*.
+<b>Figure 2.</b> *Inferred evolutionary roots of a protein-protein interaction network*.
 
 ## OMA
 
