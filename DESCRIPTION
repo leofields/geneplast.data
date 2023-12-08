@@ -14,7 +14,8 @@ Depends: R (>= 4.0)
 Imports: 
     ape, 
     treeio, 
-    tibble, 
+    tibble,
+    tidyr,
     dplyr,
     readr,
     purrr,

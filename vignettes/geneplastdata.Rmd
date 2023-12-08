@@ -142,6 +142,12 @@ species_name_lookup <- species |> dplyr::select(taxon_id, scientific_name) |> ti
 cogdata[["ssp_id"]] <- species_taxid_lookup[stri_split_fixed(cogdata[["protein_id"]], pattern = ".", n = 2, simplify = T)[,1]]
 head(cogdata)
 ```
+For users having OGs in a tabular-separated (.tsv) file, we provide the `make.cogdata()` function to parse it directly into the **cogdata** object.
+```{r, eval=FALSE}
+library(geneplast.data)
+cogdata <- geneplast.data::make.cogdata(file = "path/to/orthogroups.tsv")
+```
+
 To create the **phyloTree** object, the user can use the `make.phyloTree()` function provided by `geneplast.data` package. This function has two optional arguments (`sspids` and `newick`) that define its behavior depending on which one is provided. 
 
 Given a list of species' NCBI Taxonomy IDs `sspids`, it builds a phylogenetic tree by merging the TimeTree and NCBI Taxonomy databases:
