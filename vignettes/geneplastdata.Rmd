@@ -142,7 +142,7 @@ species_name_lookup <- species |> dplyr::select(taxon_id, scientific_name) |> ti
 cogdata[["ssp_id"]] <- species_taxid_lookup[stri_split_fixed(cogdata[["protein_id"]], pattern = ".", n = 2, simplify = T)[,1]]
 head(cogdata)
 ```
-For users having OGs in a tabular-separated (.tsv) file, we provide the `make.cogdata()` function to parse it directly into the **cogdata** object.
+For users having OGs from standard outputs from orthology inference methods like OrthoFinder, we provide the `make.cogdata()` function to parse a tabular-separated (.tsv) file directly into the **cogdata** object.
 ```{r, eval=FALSE}
 library(geneplast.data)
 cogdata <- geneplast.data::make.cogdata(file = "path/to/orthogroups.tsv")
